@@ -681,9 +681,9 @@ function getFiltered(){
     if(con && r[2]!==con) return false;
     if(res && r[12]!==res) return false;
     const fd = parseDate(r[3]);
+    if(fd === '') return true; // si no se puede parsear, incluir el registro
     if(fi && fd < fi) return false;
     if(ff && fd > ff) return false;
-    return true;
   });
   // Actualizar mapa si está activo
   if(typeof mapaIniciado!=="undefined" && mapaIniciado && document.getElementById("p-mapa").classList.contains("on")){renderMapa();}
@@ -702,9 +702,9 @@ function getFilteredExcluding(exclude=[]){
     if(!exclude.includes('placa')   && pla && r[0]!==pla) return false;
     if(!exclude.includes('conductor') && con && r[2]!==con) return false;
     const fd = parseDate(r[3]);
-    if(fi && fd < fi) return false;
-    if(ff && fd > ff) return false;
-    return true;
+    if(fd === '') return true;
+    if (fi && fd < fi) return false;
+    if (ff && fd > ff) return false;
   });
 }
 
