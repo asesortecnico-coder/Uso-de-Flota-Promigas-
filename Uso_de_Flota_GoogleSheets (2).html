@@ -423,22 +423,24 @@ function parseFecha(val) {
   if (!val) return '';
   const s = val.toString().trim();
 
-  // Solo aceptamos dd/mm/yyyy
-  const p = s.split('/');
-  if (p.length !== 3) return s;
+  // Formato con barras
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+    const p = s.split('/');
+    let dia = parseInt(p[0]);
+    let mes = parseInt(p[1]);
+    const anio = p[2];
 
-  const dia = p[0].padStart(2,'0');
-  const mes = p[1].padStart(2,'0');
-  const anio = p[2];
-
-  return `${dia}/${mes}/${anio}`;
-}
-
-  // Ultimo recurso: dejar que JS lo interprete (cuidado: asume locale del navegador)
-  const d = new Date(s);
-  if (!isNaN(d)) {
-    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    // 🔥 FORZAMOS FORMATO COLOMBIANO
+    // (NO más detección automática)
+    return `${String(dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${anio}`;
   }
+
+  // ISO yyyy-mm-dd
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const p = s.slice(0,10).split('-');
+    return `${p[2]}/${p[1]}/${p[0]}`;
+  }
+
   return s;
 }
 
