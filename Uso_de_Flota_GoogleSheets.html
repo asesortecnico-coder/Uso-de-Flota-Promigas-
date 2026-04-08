@@ -866,22 +866,22 @@ function applyFilters(){
   document.getElementById('kpi-mov').textContent = avgMov.toLocaleString('es-CO');
   document.getElementById('kpi-mov-sub').textContent = pctMov+'% de la flota';
 
-  // KPI 3: km promedio por vehículo por día
-  const placaKm={}, placaDias={};
-  rows.forEach(r=>{
-    if(!r[0]) return;
-    placaKm[r[0]] = (placaKm[r[0]]||0) + r[6];
-    if(r[6]>0 && r[3]){
-      if(!placaDias[r[0]]) placaDias[r[0]]=new Set();
-      placaDias[r[0]].add(r[3]);
-    }
-  });
-  const avgKms = Object.keys(placaKm).map(p=>{
-    const d = placaDias[p] ? placaDias[p].size : 1;
-    return placaKm[p]/d;
-  });
-  const avgKm = avgKms.length ? (avgKms.reduce((a,b)=>a+b,0)/avgKms.length).toFixed(1) : 0;
-  document.getElementById('kpi-km').textContent = avgKm+' km';
+  // KPI 3: km promedio por vehículo por día — solo con rows filtrados
+const placaKm={}, placaDias={};
+rows.forEach(r=>{
+  if(!r[0]) return;
+  placaKm[r[0]] = (placaKm[r[0]]||0) + r[6];
+  if(r[6]>0 && r[3]){
+    if(!placaDias[r[0]]) placaDias[r[0]]=new Set();
+    placaDias[r[0]].add(r[3]);
+  }
+});
+const avgKms = Object.keys(placaKm).map(p=>{
+  const d = placaDias[p] ? placaDias[p].size : 1;
+  return placaKm[p]/d;
+});
+const avgKm = avgKms.length ? (avgKms.reduce((a,b)=>a+b,0)/avgKms.length).toFixed(1) : 0;
+document.getElementById('kpi-km').textContent = avgKm+' km';
 
   // KPI 4: rutas únicas
   const rutasUnicas = new Set(rows.map(r=>r[5]).filter(Boolean));
