@@ -423,27 +423,16 @@ function parseFecha(val) {
   if (!val) return '';
   const s = val.toString().trim();
 
-  // Formato con barras: puede ser dd/mm/yyyy O mm/dd/yyyy (Sheets API en locale en-US)
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
-    const p = s.split('/');
-    const a = parseInt(p[0]), b = parseInt(p[1]), y = parseInt(p[2]);
-    // Si el primer componente > 12 => es dd/mm/yyyy (dia no puede ser mes)
-    // Si el segundo componente > 12 => es mm/dd/yyyy americano (b es dia)
-    // Si ambos <= 12 => ambiguo, asumimos dd/mm/yyyy (formato colombiano)
-    if (b > 12) {
-      // mm/dd/yyyy americano: a=mes, b=dia
-      return `${String(b).padStart(2,'0')}/${String(a).padStart(2,'0')}/${y}`;
-    } else {
-      // dd/mm/yyyy colombiano (o ambiguo, asumimos este)
-      return `${String(a).padStart(2,'0')}/${String(b).padStart(2,'0')}/${y}`;
-    }
-  }
+  // Solo aceptamos dd/mm/yyyy
+  const p = s.split('/');
+  if (p.length !== 3) return s;
 
-  // Formato ISO yyyy-mm-dd
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-    const p = s.slice(0,10).split('-');
-    return `${p[2]}/${p[1]}/${p[0]}`;
-  }
+  const dia = p[0].padStart(2,'0');
+  const mes = p[1].padStart(2,'0');
+  const anio = p[2];
+
+  return `${dia}/${mes}/${anio}`;
+}
 
   // Ultimo recurso: dejar que JS lo interprete (cuidado: asume locale del navegador)
   const d = new Date(s);
