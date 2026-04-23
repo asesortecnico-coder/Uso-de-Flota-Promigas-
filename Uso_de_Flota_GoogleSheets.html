@@ -1,4 +1,5 @@
 
+
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#F2F6F0;--panel:#FFFFFF;--border:#C8DEC0;--teal:#2E7D32;--blue:#66B040;--orange:#1B8A6B;--yellow:#9CCC3A;--text:#1A2E1A;--muted:#7A9070;--soft:#4A6840}
@@ -176,6 +177,20 @@ td{padding:9px 7px;font-size:12px}
       </div>
     </div>
     <input type="hidden" id="f-responsable" value="">
+  </div>
+  <div class="filter-group">
+    <label>Gerencia</label>
+    <div class="searchable-select" id="ss-gerencia">
+      <div class="ss-trigger" onclick="toggleDropdown('ss-gerencia')">
+        <span class="ss-display" id="ss-gerencia-display">Todas</span>
+        <span class="ss-arrow">▾</span>
+      </div>
+      <div class="ss-dropdown" id="ss-gerencia-drop">
+        <input class="ss-search" type="text" placeholder="Buscar gerencia…" oninput="filterOptions('ss-gerencia')" onclick="event.stopPropagation()">
+        <div class="ss-list" id="ss-gerencia-list"></div>
+      </div>
+    </div>
+    <input type="hidden" id="f-gerencia" value="">
   </div>
   <div class="filter-group">
     <label>Fecha inicio</label>
@@ -411,7 +426,7 @@ td{padding:9px 7px;font-size:12px}
 const VEL_DATA = [];
 
 // ── DATA ──────────────────────────────────────────────
-// cols: [placa, cliente, conductor, fecha, ciudad, ruta, km, semana, catKm, velMax, movMin, detMin, responsable]
+// cols: [placa, cliente, conductor, fecha, ciudad, ruta, km, semana, catKm, velMax, movMin, detMin, responsable, gerencia]
 
 const RAW = [];
 
@@ -487,7 +502,7 @@ async function cargarDatos() {
     // 18:PROX_MOV, 19:T_SIN_MOV, 20:NUM_SEMANA, 21:RUTAS, 22:CAT_KMH
 
     const salidaResp = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Salida!A2:X?key=${API_KEY}`
+      `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Salida!A2:Y?key=${API_KEY}`
     );
     if (!salidaResp.ok) throw new Error(`Salida: ${salidaResp.status} ${salidaResp.statusText}`);
     const salidaData = await salidaResp.json();
@@ -510,7 +525,8 @@ async function cargarDatos() {
         velMax,                                                 // [9] velMax
         parseMinutos(row[10]),                                  // [10] movMin
         parseMinutos(row[11]),                                  // [11] detMin
-        (row[23] || '').toString().trim()                       // [12] responsable (col X)
+        (row[23] || '').toString().trim(),                     // [12] responsable (col X)
+        (row[24] || '').toString().trim()                       // [13] gerencia (col Y)
       ]);
     });
 
@@ -571,9 +587,11 @@ function initDropdowns(){
   const placas = [...new Set(RAW.map(r=>r[0]).filter(Boolean))].sort();
   const conductores = [...new Set(RAW.map(r=>r[2]).filter(Boolean))].sort();
   const responsables = [...new Set(RAW.map(r=>r[12]).filter(Boolean))].sort();
+  const gerencias = [...new Set(RAW.map(r=>r[13]).filter(Boolean))].sort();
   populateSearchable('ss-placa', placas, 'Todas');
   populateSearchable('ss-conductor', conductores, 'Todos');
   populateSearchable('ss-responsable', responsables, 'Todos');
+  populateSearchable('ss-gerencia', gerencias, 'Todas');
   // Set date range dynamically from data
   const range = getDateRangeFromRAW();
   document.getElementById('f-fecha-ini').value = range.min;
@@ -694,11 +712,13 @@ function getFiltered(){
   const fi  = document.getElementById('f-fecha-ini').value;
   const ff  = document.getElementById('f-fecha-fin').value;
   const res = document.getElementById('f-responsable').value;
+  const ger = document.getElementById('f-gerencia').value;
   const result = RAW.filter(r=>{
     if(cli && r[1]!==cli) return false;
     if(pla && r[0]!==pla) return false;
     if(con && r[2]!==con) return false;
     if(res && r[12]!==res) return false;
+    if(ger && r[13]!==ger) return false;
     const fd = parseDate(r[3]);
     if(fd === '') return true; // si no se puede parsear, incluir el registro
     if(fi && fd < fi) return false;
@@ -716,12 +736,16 @@ function getFilteredExcluding(exclude=[]){
   const cli = document.getElementById('f-cliente').value;
   const pla = document.getElementById('f-placa').value;
   const con = document.getElementById('f-conductor').value;
+  const res = document.getElementById('f-responsable') ? document.getElementById('f-responsable').value : '';
+  const ger = document.getElementById('f-gerencia') ? document.getElementById('f-gerencia').value : '';
   const fi  = document.getElementById('f-fecha-ini').value;
   const ff  = document.getElementById('f-fecha-fin').value;
   return RAW.filter(r=>{
     if(!exclude.includes('cliente') && cli && r[1]!==cli) return false;
     if(!exclude.includes('placa')   && pla && r[0]!==pla) return false;
     if(!exclude.includes('conductor') && con && r[2]!==con) return false;
+    if(!exclude.includes('responsable') && res && r[12]!==res) return false;
+    if(!exclude.includes('gerencia') && ger && r[13]!==ger) return false;
     const fd = parseDate(r[3]);
     if(fd === '') return true;
     if (fi && fd < fi) return false;
@@ -785,6 +809,40 @@ function updateDependentFilters(){
     document.querySelectorAll('#ss-conductor-list .ss-item').forEach(i=>i.classList.toggle('selected',i.dataset.val===effectiveConductor));
     document.getElementById('ss-conductor-display').textContent = effectiveConductor;
     document.getElementById('f-conductor').value = effectiveConductor;
+  }
+
+  // ── Opciones válidas para RESPONSABLE (excluye filtro responsable)
+  const currentResponsable = document.getElementById('f-responsable').value;
+  const rowsForResponsable = getFilteredExcluding(['responsable']);
+  const validResponsables = [...new Set(rowsForResponsable.map(r=>r[12]).filter(Boolean))].sort();
+  const respIsValid = !currentResponsable || validResponsables.includes(currentResponsable);
+  const effectiveResponsable = respIsValid ? currentResponsable : '';
+  if(!respIsValid){
+    document.getElementById('f-responsable').value = '';
+    document.getElementById('ss-responsable-display').textContent = 'Todos';
+  }
+  populateSearchable('ss-responsable', validResponsables, 'Todos');
+  if(effectiveResponsable){
+    document.querySelectorAll('#ss-responsable-list .ss-item').forEach(i=>i.classList.toggle('selected',i.dataset.val===effectiveResponsable));
+    document.getElementById('ss-responsable-display').textContent = effectiveResponsable;
+    document.getElementById('f-responsable').value = effectiveResponsable;
+  }
+
+  // ── Opciones válidas para GERENCIA (excluye filtro gerencia)
+  const currentGerencia = document.getElementById('f-gerencia').value;
+  const rowsForGerencia = getFilteredExcluding(['gerencia']);
+  const validGerencias = [...new Set(rowsForGerencia.map(r=>r[13]).filter(Boolean))].sort();
+  const gerIsValid = !currentGerencia || validGerencias.includes(currentGerencia);
+  const effectiveGerencia = gerIsValid ? currentGerencia : '';
+  if(!gerIsValid){
+    document.getElementById('f-gerencia').value = '';
+    document.getElementById('ss-gerencia-display').textContent = 'Todas';
+  }
+  populateSearchable('ss-gerencia', validGerencias, 'Todas');
+  if(effectiveGerencia){
+    document.querySelectorAll('#ss-gerencia-list .ss-item').forEach(i=>i.classList.toggle('selected',i.dataset.val===effectiveGerencia));
+    document.getElementById('ss-gerencia-display').textContent = effectiveGerencia;
+    document.getElementById('f-gerencia').value = effectiveGerencia;
   }
 }
 
@@ -1105,6 +1163,8 @@ function resetFilters(){
   document.getElementById('ss-conductor-display').textContent='Todos';
   document.getElementById('f-responsable').value='';
   document.getElementById('ss-responsable-display').textContent='Todos';
+  document.getElementById('f-gerencia').value='';
+  document.getElementById('ss-gerencia-display').textContent='Todas';
   document.getElementById('f-fecha-ini').value=range.min;
   document.getElementById('f-fecha-fin').value=range.max;
   applyFilters();
@@ -1656,6 +1716,7 @@ function getFilteredRows() {
   const pl = document.getElementById('f-placa').value;
   const co = document.getElementById('f-conductor').value;
   const re = document.getElementById('f-responsable') ? document.getElementById('f-responsable').value : '';
+  const ge = document.getElementById('f-gerencia') ? document.getElementById('f-gerencia').value : '';
   const fi = document.getElementById('f-fecha-ini').value;
   const ff = document.getElementById('f-fecha-fin').value;
   return RAW.filter(r => {
@@ -1663,6 +1724,7 @@ function getFilteredRows() {
     if (pl && r[0] !== pl) return false;
     if (co && r[2] !== co) return false;
     if (re && r[12] !== re) return false;
+    if (ge && r[13] !== ge) return false;
     const fd = parseDate(r[3]);
     if (fi && fd < fi) return false;
     if (ff && fd > ff) return false;
